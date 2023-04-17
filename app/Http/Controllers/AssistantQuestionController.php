@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\AssistantMode;
+use App\Http\Requests\QuestionToAssistantRequest;
 use App\Services\GPT;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -13,11 +14,19 @@ class AssistantQuestionController extends Controller
     /**
      * Handle the incoming request.
      */
-    public function __invoke(Request $request)
+    public function __invoke(QuestionToAssistantRequest $request)
     {
-        $gpt = new GPT(AssistantMode::INFORMATIVE);
+        $data = $request->validated();
 
-        $answer = $gpt->ask($request->question);
+        $assistantMode = AssistantMode::from($data['assistant_mode']);
+
+        $gpt = new GPT($assistantMode);
+
+        if(!empty($data['should_remember_context']) and !empty($data['api_token'])) {
+            $gpt->rememberContext($data['api_token']);
+        }
+
+        $answer = $gpt->ask($data['question']);
 
         return response()->json([
             'answer' => $answer,

@@ -23,10 +23,12 @@ class GPTMediator:
     def ask(self):
         self.generate_question()
         self.send_question()
-        print(self.response)
+
         # if context is meant to be remembered
-        # self.save_context()
         self.save_answer_file()
+
+        if self.questionFileData['should-remember-context']:
+            self.save_context()
 
     def load_question_file(self, filename):
         filenameParts = filename.split('.')
@@ -65,7 +67,8 @@ class GPTMediator:
         with sr.AudioFile(wav_filename) as source:
             audio_data = r.record(source)
             text = r.recognize_google(audio_data, language="pl-PL")
-            print(text)
+
+        os.remove(wav_filename)
 
         return text
 
@@ -73,13 +76,12 @@ class GPTMediator:
         question = self.get_question()
 
         if question:
-            # load previous context if available
+            if self.questionFileData['should-remember-context']:
+                self.load_previous_context()
+            else:
+                self.load_starting_prompt()
 
-            # else
-            self.messages.append({"role": "system", "content": self.questionFileData['assistant-mode-prompt']})
-            #
-
-            self.messages.append({"role": "user", "content": question + '?'})
+            self.messages.append({"role": "user", "content": question + ('?' if self.questionFileData['type'] == 'audio' else '')})
 
     def send_question(self):
         openai.api_key = self.apiKey
@@ -89,10 +91,28 @@ class GPTMediator:
             messages=self.messages,
         )
 
-    def load_previous_messages(self, filename):
-        # TODO: load previous messages from file if should remember context
-        pass
+    def load_previous_context(self):
+        context_file_path = open(self.questionFileData['context-filepath'])
 
+        if not context_file_path.closed:
+            context = json.load(context_file_path)
+            context_file_path.close()
+
+            if context:
+                self.messages = context
+            else:
+                self.load_starting_prompt()
+
+        return
+
+    def save_context(self):
+        self.messages.append({"role": "assistant", "content": self.response['choices'][0]['message']['content']})
+
+        with open(self.questionFileData['context-filepath'], 'w') as context_file:
+            json.dump(self.messages, context_file)
+
+    def load_starting_prompt(self):
+        self.messages.append({"role": "system", "content": self.questionFileData['assistant-mode-prompt']})
 
 if __name__ == '__main__':
     filename = sys.argv[1]
