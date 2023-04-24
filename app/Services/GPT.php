@@ -30,9 +30,18 @@ class GPT
      */
     private string $apiToken;
 
+    /**
+     * Base system prompt giving the assistant directions on how to compose answers
+     *
+     * @var string
+     */
+    private string $baseSystemPrompt;
+
     public function __construct(AssistantMode $assistantMode)
     {
         $this->assistantMode = $assistantMode;
+        $this->baseSystemPrompt = 'Aktualna data to ' . now()->format('d.m.Y H:i:s') . ' podana w formacie d.m.y H:i:s. Miejsce to Szczecin, Polska.
+            W razie potrzeby skorzystaj z tych informacji jako punktu odniesienia, chyba że użytkownik sprecyzował inaczej.';
     }
 
     /**
@@ -56,44 +65,17 @@ class GPT
      */
     public function ask(mixed $question): string
     {
-        Log::info($this->getAssistantModeSpecificSystemOrder());
-        if($question instanceof UploadedFile) {
-            $jsonData = [
-                'type' => 'audio',
-                'assistant-mode-prompt' => $this->getAssistantModeSpecificSystemOrder(),
-                'should-remember-context' => $this->shouldRememberContext,
-                'context-filepath' => $this->getContextFilePath(),
-            ];
-
-            $fileName = Str::random() . '.' . $question->getClientOriginalExtension();
-
-            $jsonData['question'] = 'storage/app/' . $question->storeAs('audio', $fileName);
-        } elseif (is_string($question)) {
-            $jsonData = [
-                'type' => 'text',
-                'assistant-mode-prompt' => $this->getAssistantModeSpecificSystemOrder(),
-                'question' => $question,
-                'should-remember-context' => $this->shouldRememberContext,
-                'context-filepath' => $this->getContextFilePath(),
-            ];
-        } else {
-            return false;
-        }
+        $jsonData = $this->prepareQuestionJsonData($question);
 
         $jsonFilePath = $this->saveQuestionFile($jsonData);
 
         $this->callMediator($jsonFilePath);
 
-        $answerFilePath = $this->getAnswerFilePath($jsonFilePath);
+        $answerJson = $this->readAnswerJsonData($jsonFilePath);
 
-        $fp = fopen($answerFilePath, 'r');
-        $fileText = fread($fp, filesize($answerFilePath));
-        fclose($fp);
+        $this->clearFiles($jsonFilePath);
 
-        unlink($this->getAnswerFilePath($jsonFilePath));
-        unlink($jsonFilePath);
-
-        return json_decode($fileText, true)['choices'][0]['message']['content'];
+        return $answerJson['choices'][0]['message']['content'];
     }
 
     /**
@@ -172,5 +154,68 @@ class GPT
         }
 
         return null;
+    }
+
+    /**
+     * Prepare data in JSON format to be saved in a file
+     *
+     * @param mixed $question
+     * @return array|null
+     */
+    private function prepareQuestionJsonData(mixed $question): ?array
+    {
+        if($question instanceof UploadedFile) {
+            $jsonData = [
+                'type' => 'audio',
+                'assistant-mode-prompt' => $this->getAssistantModeSpecificSystemOrder() . $this->baseSystemPrompt,
+                'should-remember-context' => $this->shouldRememberContext,
+                'context-filepath' => $this->getContextFilePath(),
+            ];
+
+            $fileName = Str::random() . '.' . $question->getClientOriginalExtension();
+
+            $jsonData['question'] = 'storage/app/' . $question->storeAs('audio', $fileName);
+        } elseif (is_string($question)) {
+            $jsonData = [
+                'type' => 'text',
+                'assistant-mode-prompt' => $this->getAssistantModeSpecificSystemOrder() . $this->baseSystemPrompt,
+                'question' => $question,
+                'should-remember-context' => $this->shouldRememberContext,
+                'context-filepath' => $this->getContextFilePath(),
+            ];
+        } else {
+            return null;
+        }
+
+        return $jsonData;
+    }
+
+    /**
+     * Read data from answer file
+     *
+     * @param string $jsonFilePath
+     * @return mixed
+     */
+    private function readAnswerJsonData(string $jsonFilePath): mixed
+    {
+        $answerFilePath = $this->getAnswerFilePath($jsonFilePath);
+
+        $fp = fopen($answerFilePath, 'r');
+        $fileText = fread($fp, filesize($answerFilePath));
+        fclose($fp);
+
+        return json_decode($fileText, true);
+    }
+
+    /**
+     * Remove question and answer files
+     *
+     * @param string $jsonFilePath
+     * @return void
+     */
+    private function clearFiles(string $jsonFilePath): void
+    {
+        unlink($this->getAnswerFilePath($jsonFilePath));
+        unlink($jsonFilePath);
     }
 }
