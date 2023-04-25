@@ -6,6 +6,7 @@ use App\Enums\AssistantMode;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Stevebauman\Location\Facades\Location;
 
 class GPT
 {
@@ -40,8 +41,23 @@ class GPT
     public function __construct(AssistantMode $assistantMode)
     {
         $this->assistantMode = $assistantMode;
-        $this->baseSystemPrompt = 'Aktualna data to ' . now()->format('d.m.Y H:i:s') . 'Miejsce to Szczecin, Polska.
-            W razie potrzeby skorzystaj z tych informacji jako punktu odniesienia, chyba że użytkownik sprecyzował inaczej.';
+
+        list($cityName, $countryName) = $this->getCityAndCountryName();
+
+        $this->baseSystemPrompt = 'Aktualna data to ' . now()->format('d.m.Y H:i:s') . ', ' . config('daysofweek.' . now()->dayOfWeek) .
+            '. Użytkownik znajduje się w ' . $cityName . ', ' . $countryName . '. Skorzystaj z tych informacji w razie potrzeby.';
+    }
+
+    /**
+     * Prepare city and country name from IP address
+     *
+     * @return array
+     */
+    private function getCityAndCountryName(): array
+    {
+        $userLocationInfo = Location::get(request()->ip());
+
+        return array($userLocationInfo->cityName, $userLocationInfo->countryName);
     }
 
     /**

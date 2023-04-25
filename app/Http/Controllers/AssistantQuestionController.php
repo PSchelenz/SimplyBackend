@@ -5,9 +5,6 @@ namespace App\Http\Controllers;
 use App\Enums\AssistantMode;
 use App\Http\Requests\QuestionToAssistantRequest;
 use App\Services\GPT;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 class AssistantQuestionController extends Controller
 {
