@@ -40,7 +40,7 @@ class GPT
     public function __construct(AssistantMode $assistantMode)
     {
         $this->assistantMode = $assistantMode;
-        $this->baseSystemPrompt = 'Aktualna data to ' . now()->format('d.m.Y H:i:s') . ' podana w formacie d.m.y H:i:s. Miejsce to Szczecin, Polska.
+        $this->baseSystemPrompt = 'Aktualna data to ' . now()->format('d.m.Y H:i:s') . 'Miejsce to Szczecin, Polska.
             W razie potrzeby skorzystaj z tych informacji jako punktu odniesienia, chyba że użytkownik sprecyzował inaczej.';
     }
 
