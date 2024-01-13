@@ -1,9 +1,10 @@
 import string
 import json
 import random
-import openai
+from openai import OpenAI
 import os
 import sys
+from pathlib import Path
 from dotenv.main import load_dotenv
 import speech_recognition as sr
 from pydub import AudioSegment
@@ -27,16 +28,18 @@ class GPTMediator:
         self.questionFileOriginalName = ''
         self.questionFileOriginalExtension = ''
         self.questionFileData = {}
-        self.apiKey = os.getenv("OPENAI_API_KEY")
         self.response = ''
+        self.openai = OpenAI(
+            api_key=os.getenv("OPENAI_API_KEY")
+        )
 
     def ask(self):
         self.generate_question()
         self.send_question()
 
-        # if context is meant to be remembered
         self.save_answer_file()
 
+        # if context is meant to be remembered
         if self.questionFileData['should-remember-context']:
             self.save_context()
 
@@ -104,12 +107,20 @@ class GPTMediator:
             self.messages.append({"role": "user", "content": pre_question + question + ('?' if self.questionFileData['type'] == 'audio' else '')})
 
     def send_question(self):
-        openai.api_key = self.apiKey
-
-        self.response = openai.ChatCompletion.create(
+        self.response = self.openai.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=self.messages,
         )
+
+    def generate_voice(self, message):
+        speech_file_path = Path(__file__) / "public/audio/speech.mp3"
+        response = self.openai.audio.speech.create(
+          model="tts-1",
+          voice="alloy",
+          input=message
+        )
+
+        response.stream_to_file(speech_file_path)
 
     def load_previous_context(self):
         context_file_path = open(self.questionFileData['context-filepath'])
