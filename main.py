@@ -7,9 +7,19 @@ import sys
 from dotenv.main import load_dotenv
 import speech_recognition as sr
 from pydub import AudioSegment
+from datetime import date
 
 load_dotenv()
 
+week_days = {
+    0: 'poniedziałek',
+    1: 'wtorek',
+    2: 'środa',
+    3: 'czwartek',
+    4: 'piątek',
+    5: 'sobota',
+    6: 'niedziela'
+}
 
 class GPTMediator:
     def __init__(self):
@@ -54,6 +64,15 @@ class GPTMediator:
         else:
             return ''
 
+    def get_pre_question(self):
+        if self.questionFileData['generate-weather-link']:
+            return ("Link do wygenerowania pogody to 'http://api.weatherapi.com/v1/forecast.json?key=87782f54025f463ab94191434240201&q={miasto}&aqi=no&days=5'. "
+                    "W tym linku podmień {miasto} na nazwę miasta, dla którego użytkownik chce wygenerować pogodę i podaj odpowiedź w formacie '{link: \"<wygenerowany link>\"}'. {miasto} powinno być w języku angielskim. "
+                    "Jeśli użytkownik nie podał nazwy miasta, "
+                    "to w tym miejscu wstaw nazwę 'Szczecin'. Wykonaj to zadanie na podstawie następującego tekstu: ")
+        else:
+            return f"Dziś jest dzień {date.today()} - {week_days[date.today().weekday()]}. Na podstawie JSON'a z informacjami na temat pogody podanego na końcu (nie wspominaj o nim w odpowiedzi), odpowiedz krótko na pytanie: "
+
     def get_audio_text(self):
         base_filename = self.questionFileData['question']
         base_extension = self.questionFileData['question'].split('.')[-1]
@@ -74,6 +93,7 @@ class GPTMediator:
 
     def generate_question(self):
         question = self.get_question()
+        pre_question = self.get_pre_question()
 
         if question:
             if self.questionFileData['should-remember-context']:
@@ -81,7 +101,7 @@ class GPTMediator:
             else:
                 self.load_starting_prompt()
 
-            self.messages.append({"role": "user", "content": question + ('?' if self.questionFileData['type'] == 'audio' else '')})
+            self.messages.append({"role": "user", "content": pre_question + question + ('?' if self.questionFileData['type'] == 'audio' else '')})
 
     def send_question(self):
         openai.api_key = self.apiKey

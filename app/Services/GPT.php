@@ -41,11 +41,6 @@ class GPT
     public function __construct(AssistantMode $assistantMode)
     {
         $this->assistantMode = $assistantMode;
-
-        list($cityName, $countryName) = $this->getCityAndCountryName();
-
-        $this->baseSystemPrompt = 'Aktualna data to ' . now()->format('d.m.Y H:i:s') . ', ' . config('daysofweek.' . now()->dayOfWeek) .
-            '. Użytkownik znajduje się w ' . $cityName . ', ' . $countryName . '. Skorzystaj z tych informacji w razie potrzeby.';
     }
 
     /**
@@ -68,8 +63,8 @@ class GPT
     private function getAssistantModeSpecificSystemOrder(): string
     {
         return match ($this->assistantMode) {
-            AssistantMode::INFORMATIVE => 'Jesteś pomocnym asystentem. Twoje odpowiedzi są krótkie i zwięzłe.',
-            AssistantMode::CONVERSATIONAL => 'Jesteś pomocnym asystentem. Twoje odpowiedzi są dłuższe i bardziej rozbudowane.'
+            AssistantMode::INFORMATIVE => 'Jesteś asystentem pogodowym. Twoje odpowiedzi są krótkie i zwięzłe.',
+            AssistantMode::CONVERSATIONAL => 'Jesteś asystentem pogodowym. Twoje odpowiedzi są dłuższe i bardziej rozbudowane.'
         };
     }
 
@@ -77,11 +72,12 @@ class GPT
      * Ask assistant a question
      *
      * @param mixed $question
+     * @param bool $generateOpenWeatherLink
      * @return string
      */
-    public function ask(mixed $question): string
+    public function ask(mixed $question, bool $generateOpenWeatherLink = false): string
     {
-        $jsonData = $this->prepareQuestionJsonData($question);
+        $jsonData = $this->prepareQuestionJsonData($question, $generateOpenWeatherLink);
 
         $jsonFilePath = $this->saveQuestionFile($jsonData);
 
@@ -176,16 +172,18 @@ class GPT
      * Prepare data in JSON format to be saved in a file
      *
      * @param mixed $question
+     * @param bool $generateOpenWeatherLink
      * @return array|null
      */
-    private function prepareQuestionJsonData(mixed $question): ?array
+    private function prepareQuestionJsonData(mixed $question, bool $generateOpenWeatherLink): ?array
     {
         if($question instanceof UploadedFile) {
             $jsonData = [
                 'type' => 'audio',
-                'assistant-mode-prompt' => $this->getAssistantModeSpecificSystemOrder() . $this->baseSystemPrompt,
+                'assistant-mode-prompt' => $this->getAssistantModeSpecificSystemOrder(),
                 'should-remember-context' => $this->shouldRememberContext,
                 'context-filepath' => $this->getContextFilePath(),
+                'generate-weather-link' => $generateOpenWeatherLink,
             ];
 
             $fileName = Str::random() . '.' . $question->getClientOriginalExtension();
@@ -194,10 +192,11 @@ class GPT
         } elseif (is_string($question)) {
             $jsonData = [
                 'type' => 'text',
-                'assistant-mode-prompt' => $this->getAssistantModeSpecificSystemOrder() . $this->baseSystemPrompt,
+                'assistant-mode-prompt' => $this->getAssistantModeSpecificSystemOrder(),
                 'question' => $question,
                 'should-remember-context' => $this->shouldRememberContext,
                 'context-filepath' => $this->getContextFilePath(),
+                'generate-weather-link' => $generateOpenWeatherLink,
             ];
         } else {
             return null;
