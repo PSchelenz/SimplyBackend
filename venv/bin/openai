@@ -1,4 +1,4 @@
-#!/home/piotr/PDZ/Serwer/venv/bin/python
+#!/home/piotr/Programming_Sandbox/PDZ/Serwer/venv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys

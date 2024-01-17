@@ -28,7 +28,7 @@ class GPTMediator:
         self.questionFileOriginalName = ''
         self.questionFileOriginalExtension = ''
         self.questionFileData = {}
-        self.response = ''
+        self.response = None
         self.openai = OpenAI(
             api_key=os.getenv("OPENAI_API_KEY")
         )
@@ -57,7 +57,7 @@ class GPTMediator:
         filename = self.questionFileOriginalName + '_answer.json'
 
         with open(filename, 'w') as outfile:
-            json.dump(self.response, outfile)
+            json.dump(self.response.choices[0].message.content, outfile)
 
     def get_question(self):
         if self.questionFileData['type'] == 'text':
@@ -69,8 +69,8 @@ class GPTMediator:
 
     def get_pre_question(self):
         if self.questionFileData['generate-weather-link']:
-            return ("Link do wygenerowania pogody to 'http://api.weatherapi.com/v1/forecast.json?key=87782f54025f463ab94191434240201&q={miasto}&aqi=no&days=5'. "
-                    "W tym linku podmień {miasto} na nazwę miasta, dla którego użytkownik chce wygenerować pogodę i podaj odpowiedź w formacie '{link: \"<wygenerowany link>\"}'. {miasto} powinno być w języku angielskim. "
+            return ("Link do wygenerowania pogody to 'http://api.weatherapi.com/v1/forecast.json?key=7afaa9b0e73e41389cc192613241701&q={miasto}&aqi=no&days=5'. "
+                    "W tym linku podmień {miasto} na nazwę miasta, dla którego użytkownik chce wygenerować pogodę. Odpowiedź podaj w formacie '{link: \"<wygenerowany link>\"}'. {miasto} powinno być w języku angielskim. "
                     "Jeśli użytkownik nie podał nazwy miasta, "
                     "to w tym miejscu wstaw nazwę 'Szczecin'. Wykonaj to zadanie na podstawie następującego tekstu: ")
         else:
@@ -112,15 +112,17 @@ class GPTMediator:
             messages=self.messages,
         )
 
-    def generate_voice(self, message):
-        speech_file_path = Path(__file__) / "public/audio/speech.mp3"
+    def generate_voice(self):
+        message = self.questionFileData['message']
+        speech_file_path = Path(__file__).parent.absolute() / "public/audio/speech.mp3"
+
         response = self.openai.audio.speech.create(
           model="tts-1",
-          voice="alloy",
+          voice="echo",
           input=message
         )
 
-        response.stream_to_file(speech_file_path)
+        response.write_to_file(speech_file_path)
 
     def load_previous_context(self):
         context_file_path = open(self.questionFileData['context-filepath'])

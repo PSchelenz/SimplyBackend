@@ -83,11 +83,28 @@ class GPT
 
         $this->callMediator($jsonFilePath);
 
-        $answerJson = $this->readAnswerJsonData($jsonFilePath);
+        $answer = $this->readAnswerJsonData($jsonFilePath);
 
         $this->clearFiles($jsonFilePath);
 
-        return $answerJson['choices'][0]['message']['content'];
+        return $answer;
+    }
+
+    /**
+     * Generate voice that reads a message and saves it to public folder.
+     *
+     * @param string $text
+     * @return void
+     */
+    public function generateVoice(string $text): void
+    {
+        $jsonData = $this->prepareVoiceJsonData($text);
+
+        $jsonFilePath = $this->saveQuestionFile($jsonData);
+
+        $this->callVoiceGenerator($jsonFilePath);
+
+        $this->clearFiles($jsonFilePath);
     }
 
     /**
@@ -131,6 +148,17 @@ class GPT
     private function callMediator(string $jsonFilePath): void
     {
         exec('cd .. && . venv/bin/activate && python3 main.py ' . $jsonFilePath, $output, $returnCode);
+    }
+
+    /**
+     * Call Python script that will generate a voice based on a question file
+     *
+     * @param string $jsonFilePath
+     * @return void
+     */
+    private function callVoiceGenerator(string $jsonFilePath): void
+    {
+        exec('cd .. && . venv/bin/activate && python3 voice.py ' . $jsonFilePath, $output, $returnCode);
     }
 
     /**
@@ -206,6 +234,19 @@ class GPT
     }
 
     /**
+     * Prepare voice data in JSON format to be saved in a file
+     *
+     * @param string $message
+     * @return string[]
+     */
+    private function prepareVoiceJsonData(string $message): array
+    {
+        return [
+            'message' => $message,
+        ];
+    }
+
+    /**
      * Read data from answer file
      *
      * @param string $jsonFilePath
@@ -230,7 +271,12 @@ class GPT
      */
     private function clearFiles(string $jsonFilePath): void
     {
-        unlink($this->getAnswerFilePath($jsonFilePath));
+        $answerFile = $this->getAnswerFilePath($jsonFilePath);
+
+        if(file_exists($answerFile)) {
+            unlink($answerFile);
+        }
+
         unlink($jsonFilePath);
     }
 }

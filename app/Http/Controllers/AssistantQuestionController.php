@@ -6,8 +6,6 @@ use App\Enums\AssistantMode;
 use App\Http\Requests\QuestionToAssistantRequest;
 use App\Services\GPT;
 use App\Services\WeatherBro;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 class AssistantQuestionController extends Controller
 {
@@ -49,8 +47,11 @@ class AssistantQuestionController extends Controller
 
         $finalAnswer = $gpt->ask($data['question'] . ".\n" . $forecast);
 
+        $gpt->generateVoice($finalAnswer);
+
         return response()->json([
             'answer' => $finalAnswer,
+            'audio_filepath' => asset('audio/speech.mp3')
         ]);
     }
 }
